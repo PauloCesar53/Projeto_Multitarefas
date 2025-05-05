@@ -13,19 +13,55 @@
 #define I2C_SCL 15
 #define endereco 0x3C
 
-#define led1 11
-#define led2 12
+#define led1 11//definindo LED verde
+#define led2 12//definindo LED azul
+#define led3 13//definindo LED vermelho 
+#define botaoA 5//definindo botão A
+bool modo=1;//Flag para modo (1 diurno e 0 noturno)
+static volatile uint32_t last_time_A = 0; // Armazena o tempo do último evento para Bot B(em microssegundos)
 
-void vBlinkLed1Task()
+void vLedRGBTask()//task para LED RGB
 {
+    //definindo LED verde
     gpio_init(led1);
     gpio_set_dir(led1, GPIO_OUT);
+    //definindo LED azul
+    gpio_init(led2);
+    gpio_set_dir(led2, GPIO_OUT);
+    //definindo LED vermelho
+    gpio_init(led3);
+    gpio_set_dir(led3, GPIO_OUT);
     while (true)
-    {
-        gpio_put(led1, true);
-        vTaskDelay(pdMS_TO_TICKS(250));
-        gpio_put(led1, false);
-        vTaskDelay(pdMS_TO_TICKS(1223));
+    {   
+        if(modo){//modo diurno
+            for(int i=0;i<4;i++){//para verde (total 4 segundos)
+                gpio_put(led1, true);
+                vTaskDelay(pdMS_TO_TICKS(500));//beep curto por segundo 
+                gpio_put(led1, false);
+                vTaskDelay(pdMS_TO_TICKS(500));
+            }
+            for(int i=0;i<10;i++){//para amarelo (Vermelho e verde ligados simultaneamente)(total 4 segundos)
+                gpio_put(led1, true);
+                gpio_put(led3, true);
+                vTaskDelay(pdMS_TO_TICKS(200));//beep rápido intermitente 
+                gpio_put(led1, false);
+                gpio_put(led3, false);
+                vTaskDelay(pdMS_TO_TICKS(200));
+            }
+            for(int i=0;i<2;i++){//para vermelho (total 4 segundos)
+                gpio_put(led3, true);
+                vTaskDelay(pdMS_TO_TICKS(500));//tom continuo curto 
+                gpio_put(led3, false);
+                vTaskDelay(pdMS_TO_TICKS(1500));
+            }
+        }else{//modo noturno (amarelo lento a cada 2s )
+            gpio_put(led1, true);
+            gpio_put(led3, true);
+            vTaskDelay(pdMS_TO_TICKS(1500));
+            gpio_put(led1, false);
+            gpio_put(led3, false);
+            vTaskDelay(pdMS_TO_TICKS(500));
+        }
     }
 }
 
@@ -80,12 +116,19 @@ void vDisplay3Task()
     }
 }
 
+
 // Trecho para modo BOOTSEL com botão B
 #include "pico/bootrom.h"
 #define botaoB 6
-void gpio_irq_handler(uint gpio, uint32_t events)
+void vGpio_irq_handler(uint gpio, uint32_t events)//task para botões 
 {
-    reset_usb_boot(0, 0);
+    uint32_t current_time = to_us_since_boot(get_absolute_time());//// Obtém o tempo atual em microssegundos
+    if(gpio_get(botaoB)==0){
+        reset_usb_boot(0, 0);
+    }
+    if(gpio_get(botaoA)==0 &&(current_time - last_time_A) > 200000){//200ms de boucing adiconado como condição
+        modo=!modo;
+    }
 }
 
 int main()
@@ -94,15 +137,21 @@ int main()
     gpio_init(botaoB);
     gpio_set_dir(botaoB, GPIO_IN);
     gpio_pull_up(botaoB);
-    gpio_set_irq_enabled_with_callback(botaoB, GPIO_IRQ_EDGE_FALL, true, &gpio_irq_handler);
+    //Para alterar a Flag Botão A
+    gpio_init(botaoA);
+    gpio_set_dir(botaoA, GPIO_IN);
+    gpio_pull_up(botaoA);
+    
+    gpio_set_irq_enabled_with_callback(botaoB, GPIO_IRQ_EDGE_FALL, true, &vGpio_irq_handler);
+    gpio_set_irq_enabled_with_callback(botaoA, GPIO_IRQ_EDGE_FALL, true, &vGpio_irq_handler);
     // Fim do trecho para modo BOOTSEL com botão B
 
     stdio_init_all();
 
-    xTaskCreate(vBlinkLed1Task, "Blink Task Led1", configMINIMAL_STACK_SIZE,
+    xTaskCreate(vLedRGBTask, "Blink Task Led1", configMINIMAL_STACK_SIZE,
          NULL, tskIDLE_PRIORITY, NULL);
-    xTaskCreate(vBlinkLed2Task, "Blink Task Led2", configMINIMAL_STACK_SIZE, 
-        NULL, tskIDLE_PRIORITY, NULL);
+    /*xTaskCreate(vBlinkLed2Task, "Blink Task Led2", configMINIMAL_STACK_SIZE, 
+        NULL, tskIDLE_PRIORITY, NULL);*/
     xTaskCreate(vDisplay3Task, "Cont Task Disp3", configMINIMAL_STACK_SIZE, 
         NULL, tskIDLE_PRIORITY, NULL);
     vTaskStartScheduler();
