@@ -60,7 +60,6 @@ void vLedRGBTask()//task para LED RGB e Matriz
                 gpio_put(led1, true);
                 vTaskDelay(pdMS_TO_TICKS(500));//beep curto por segundo 
                 gpio_put(led1, false);
-                //vTaskDelay(pdMS_TO_TICKS(500));
                 if(modo==0){
                     break;
                 }
@@ -78,7 +77,6 @@ void vLedRGBTask()//task para LED RGB e Matriz
                 vTaskDelay(pdMS_TO_TICKS(200));//beep rápido intermitente 
                 gpio_put(led1, false);
                 gpio_put(led3, false);
-                //vTaskDelay(pdMS_TO_TICKS(200));
             }
             for(int i=0;i<8;i++){//para vermelho (total 4 segundos)
                 Cor_sinal=3;
@@ -91,7 +89,6 @@ void vLedRGBTask()//task para LED RGB e Matriz
                 gpio_put(led3, true);
                 vTaskDelay(pdMS_TO_TICKS(500));//tom continuo curto 
                 gpio_put(led3, false);
-                //vTaskDelay(pdMS_TO_TICKS(1500));
             }
         }else{//modo noturno (amarelo lento a cada 2s )
             Cor_sinal=2;
