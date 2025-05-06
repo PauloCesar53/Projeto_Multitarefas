@@ -119,7 +119,7 @@ void vBuzzerTask()
     }
 }
 
-void vDisplay3Task()
+void vDisplay3Task()//Task Para imprimir no display e atualizar Flag modo
 {
     // I2C Initialisation. Using it at 400Khz.
     i2c_init(I2C_PORT, 400 * 1000);
@@ -146,6 +146,11 @@ void vDisplay3Task()
     bool aux=1;//efeito visual mensagem 
     while (true)
     {
+        uint32_t current_time = to_us_since_boot(get_absolute_time());//// Obtém o tempo atual em microssegundos
+        if(gpio_get(botaoA)==0 &&(current_time - last_time_A) > 200000){//200ms de boucing adiconado como condição
+            last_time_A = current_time; // Atualiza o tempo do último evento
+            modo=!modo;
+        }
         //sprintf(str_y, "%d", contador); // Converte em string
         //contador++;                     // Incrementa o contador
         ssd1306_fill(&ssd, !cor);                          // Limpa o display
@@ -179,13 +184,8 @@ void vDisplay3Task()
 #define botaoB 6
 void vGpio_irq_handler(uint gpio, uint32_t events)//task para botões 
 {
-    uint32_t current_time = to_us_since_boot(get_absolute_time());//// Obtém o tempo atual em microssegundos
     if(gpio_get(botaoB)==0){
         reset_usb_boot(0, 0);
-    }
-    if(gpio_get(botaoA)==0 &&(current_time - last_time_A) > 200000){//200ms de boucing adiconado como condição
-        last_time_A = current_time; // Atualiza o tempo do último evento
-        modo=!modo;
     }
 }
 
@@ -206,11 +206,11 @@ int main()
 
     stdio_init_all();
 
-    xTaskCreate(vLedRGBTask, "Blink Task Led1", configMINIMAL_STACK_SIZE,
+    xTaskCreate(vLedRGBTask, "Task Led1", configMINIMAL_STACK_SIZE,
          NULL, tskIDLE_PRIORITY, NULL);
-    xTaskCreate(vBuzzerTask, "Blink Task Led2", configMINIMAL_STACK_SIZE, 
+    xTaskCreate(vBuzzerTask, "Task Buzzer2", configMINIMAL_STACK_SIZE, 
         NULL, tskIDLE_PRIORITY, NULL);
-    xTaskCreate(vDisplay3Task, "Cont Task Disp3", configMINIMAL_STACK_SIZE, 
+    xTaskCreate(vDisplay3Task, "Task Disp3", configMINIMAL_STACK_SIZE, 
         NULL, tskIDLE_PRIORITY, NULL);
     vTaskStartScheduler();
     panic_unsupported();
