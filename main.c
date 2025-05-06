@@ -1,6 +1,7 @@
 #include "pico/stdlib.h"
 #include "hardware/gpio.h"
 #include "hardware/i2c.h"
+#include "hardware/pwm.h"//biblioteca para funções  pwm
 #include "lib/ssd1306.h"
 #include "lib/font.h"
 #include "FreeRTOS.h"
@@ -17,6 +18,7 @@
 #define led2 12//definindo LED azul
 #define led3 13//definindo LED vermelho 
 #define botaoA 5//definindo botão A
+#define buzzer 21// pino do Buzzer na BitDogLab
 bool modo=1;//Flag para modo (1 diurno e 0 noturno)
 static volatile uint32_t last_time_A = 0; // Armazena o tempo do último evento para Bot B(em microssegundos)
 uint Cor_sinal=4;//auxiliar para com do sinal (Verde=1, Amarelo=2, Vermelho=3)
@@ -78,16 +80,42 @@ void vLedRGBTask()//task para LED RGB
     }
 }
 
-void vBlinkLed2Task()
+void vBuzzerTask()
 {
-    gpio_init(led2);
-    gpio_set_dir(led2, GPIO_OUT);
+     //configurando PWM
+    uint pwm_wrap = 8000;// definindo valor de wrap referente a 12 bits do ADC
+    gpio_set_function(buzzer, GPIO_FUNC_PWM);
+    uint slice_num = pwm_gpio_to_slice_num(buzzer);
+    pwm_set_wrap(slice_num, pwm_wrap);
+    pwm_set_clkdiv(slice_num, 125.0);//divisor de clock 
+    pwm_set_enabled(slice_num, true);
+    //gpio_init(led2);
+    //gpio_set_dir(led2, GPIO_OUT);
     while (true)
     {
-        gpio_put(led2, true);
-        vTaskDelay(pdMS_TO_TICKS(500));
-        gpio_put(led2, false);
-        vTaskDelay(pdMS_TO_TICKS(2224));
+        if(modo==1){
+            if(Cor_sinal==1){//sinal verde
+                pwm_set_gpio_level(buzzer, 400);//10% de Duty cycle
+                vTaskDelay(pdMS_TO_TICKS(500));
+                pwm_set_gpio_level(buzzer, 0);
+                vTaskDelay(pdMS_TO_TICKS(500));
+            }else if(Cor_sinal==2){//sinal amarelo 
+                pwm_set_gpio_level(buzzer, 400);//10% de Duty cycle
+                vTaskDelay(pdMS_TO_TICKS(200));
+                pwm_set_gpio_level(buzzer, 0);
+                vTaskDelay(pdMS_TO_TICKS(200));
+            }else if(Cor_sinal==3){//sinal vermelho
+                pwm_set_gpio_level(buzzer, 400);//10% de Duty cycle
+                vTaskDelay(pdMS_TO_TICKS(500));
+                pwm_set_gpio_level(buzzer, 0);
+                vTaskDelay(pdMS_TO_TICKS(1500));
+            }
+        }else{
+            pwm_set_gpio_level(buzzer, 400);//10% de Duty cycle
+            vTaskDelay(pdMS_TO_TICKS(1500));
+            pwm_set_gpio_level(buzzer, 0);
+            vTaskDelay(pdMS_TO_TICKS(500));
+        }
     }
 }
 
@@ -180,8 +208,8 @@ int main()
 
     xTaskCreate(vLedRGBTask, "Blink Task Led1", configMINIMAL_STACK_SIZE,
          NULL, tskIDLE_PRIORITY, NULL);
-    /*xTaskCreate(vBlinkLed2Task, "Blink Task Led2", configMINIMAL_STACK_SIZE, 
-        NULL, tskIDLE_PRIORITY, NULL);*/
+    xTaskCreate(vBuzzerTask, "Blink Task Led2", configMINIMAL_STACK_SIZE, 
+        NULL, tskIDLE_PRIORITY, NULL);
     xTaskCreate(vDisplay3Task, "Cont Task Disp3", configMINIMAL_STACK_SIZE, 
         NULL, tskIDLE_PRIORITY, NULL);
     vTaskStartScheduler();
